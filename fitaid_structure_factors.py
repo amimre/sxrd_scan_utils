@@ -22,8 +22,8 @@ class FitaidOutput:
                                  f"for file {self.file_path}.")
             name_parts = self.file_path.name.split('_')
             self.type = name_parts[0]
-            self.scan_nr = name_parts[4]
-            self.seq_nr = name_parts[5]  # should not be needed for anything
+            self.scan_nr = name_parts[3]
+            self.seq_nr = name_parts[4]  # should not be needed for anything
         else:
             self.type, self.scan_nr = type_and_scan_nr
 
