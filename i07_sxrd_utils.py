@@ -67,7 +67,7 @@ class RockingCurve(SXRDScan):
                              f"L value(s): {self.l_values}")
         self.l = _collapse_value(self.l_values, eps, integer_only)
         self.h = _collapse_value(self.h_values, eps, integer_only)
-        self.k = _collapse_value(self.h_values, eps, integer_only)
+        self.k = _collapse_value(self.k_values, eps, integer_only)
 
 
 class LScan(SXRDScan):
