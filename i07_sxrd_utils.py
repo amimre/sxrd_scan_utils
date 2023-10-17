@@ -56,7 +56,7 @@ def _collapse_value(arr, eps, integer_only):
 
 class RockingCurve(SXRDScan):
     # *should* have a single L value, but moving H,K (==omega)
-    def __init__(self, nxs_path, integer_only, eps=1e-3):
+    def __init__(self, nxs_path, integer_only=True, eps=1e-3):
         super().__init__(nxs_path)
         if eps <= 0:
             raise ValueError("eps must be >= 0")
@@ -115,21 +115,33 @@ class SXRDExperiment:
         else:
             raise ValueError("Not a valid scan type.")
 
+    def _assign_scans(self, scans, groups):
+        assigned_scans = {hk:set() for hk in groups}
+        for scan in scans:
+            assigned_scans[(scan.h, scan.k)].add(scan)
+        return _sort_dict_by_hk(assigned_scans)
+
+    @property
+    def assigned_scans(self):
+        return self._assign_scans(self.all_scans, self.hk_groups)
+
     @property
     def assigned_lscans(self):
-        hk_assigned_scans = {hk:set() for hk in self.l_scan_hk_groups}
-        for scan in self.l_scans:
-            hk_assigned_scans[(scan.h, scan.k)].add(scan)
-        hk_assigned_scans = {}
-        return _sort_dict_by_hk(hk_assigned_scans)
-
+        return self._assign_scans(self.l_scans, self.l_scan_hk_groups)
 
     @property
     def assigned_lscan_numbers(self):
-        hk_assigned_scan_numbers = {hk:set() for hk in self.l_scan_hk_groups}
-        for scan in self.l_scans:
+        return self._assign_numbers(self.l_scans, self.l_scan_hk_groups)
+
+    @property
+    def assigned_scan_numbers(self):
+        return self._assign_numbers(self.all_scans, self.hk_groups)
+
+    def _assign_numbers(self, scans, groups):
+        hk_assigned_scan_numbers = {hk:set() for hk in groups}
+        for scan in scans:
             hk_assigned_scan_numbers[(scan.h, scan.k)].add(scan.id)
-        for hk in self.l_scan_hk_groups:
+        for hk in groups:
             hk_assigned_scan_numbers[hk] = (
                 tuple(sorted(hk_assigned_scan_numbers[hk]))
             )
@@ -140,19 +152,25 @@ class SXRDExperiment:
         return set(((s.h,s.k) for s in self.l_scans))
 
     @property
-    def sorted_l_scans_for_processing(self):
-        sorted_scans = ''
-        for _, scan_numbers in self.assigned_lscan_numbers.items():
-            sorted_scans += ' '.join(str(nr) for nr in scan_numbers) + '\n'
-        sorted_scans = sorted_scans.strip()  # remove trailing \n
-        return sorted_scans
+    def hk_groups(self):
+        return set(((s.h,s.k) for s in self.all_scans))
+
 
 def _sort_dict_by_hk(hk_indexed_dict):
     return {k: v for k, v in sorted(hk_indexed_dict.items(),
                                     key=lambda item: item[0])}
+
 
 def grab_scan_nr_list(scan_nr_file):
     with open(scan_nr_file) as file:
         lines = file.readlines()
         scan_numbers = [int(l) for l in lines]
     return scan_numbers
+
+
+def sorted_output_for_processing(assigned_scan_numbers):
+    sorted_scans = ''
+    for _, scan_numbers in assigned_scan_numbers.items():
+        sorted_scans += ' '.join(str(nr) for nr in scan_numbers) + '\n'
+    sorted_scans = sorted_scans.strip()  # remove trailing \n
+    return sorted_scans
