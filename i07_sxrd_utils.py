@@ -1,21 +1,16 @@
 import numpy as np
 from nexusformat import nexus
-import binoculars
 from pathlib import Path
-
-from matplotlib import pyplot as plt
-from tqdm import tqdm
 
 
 class SXRDScan:
-    """
-    Every scan has a sequential number, acquisition time and (h, k) index.
+    """Every scan has a sequential number, acquisition time and (h, k) index.
     """
     def __init__(self, nxs_path):
         # ensure file exists
         self.nxs_path  = nxs_path
         if not self.nxs_path.is_file():
-            raise RuntimeError(f"File {self.nxs_path} does not exist")
+            raise RuntimeError(f"File {self.nxs_path} does not exist.")
         # get id number
         self.id = int(self.nxs_path.name[4:-4])
 
