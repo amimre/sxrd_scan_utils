@@ -12,7 +12,7 @@ class FitaidOutput:
     def __init__(self, file_path, type_and_scan_nr=None):
         self.file_path = file_path
         if not self.file_path.is_file():
-            raise RuntimeError(f"File {self.file_path} does mot exist.")
+            raise RuntimeError(f"File {self.file_path} does not exist.")
 
         if type_and_scan_nr is None:
             # read from file name
@@ -38,7 +38,7 @@ class FitaidOutput:
         without header. Colums are spearated by a space and contain floating
         point numbers in scientific notation.
         This format is simple enough to just use numpy for reading in.
-        
+
         The first colum is L values, the second colum the corresponding values.
         """
         data = np.loadtxt(self.file_path)
