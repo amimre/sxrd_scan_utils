@@ -22,8 +22,9 @@ class FitaidOutput:
                                  f"for file {self.file_path}.")
             name_parts = self.file_path.name.split('_')
             self.type = name_parts[0]
-            self.scan_nr = name_parts[3]
-            self.seq_nr = name_parts[4]  # should not be needed for anything
+            self.scan_nr = int(name_parts[3])
+            # sequential number should not be needed for anything but just in case
+            self.seq_nr = int(name_parts[4].replace('.txt', ''))
         else:
             self.type, self.scan_nr = type_and_scan_nr
 
