@@ -2,6 +2,7 @@ import numpy as np
 from nexusformat import nexus
 from pathlib import Path
 
+from fitaid_structure_factors import FitaidOutput
 
 class SXRDScan:
     """Every scan has a sequential number, acquisition time and (h, k) index.
@@ -63,6 +64,7 @@ class RockingCurve(SXRDScan):
         self.l = _collapse_value(self.l_values, eps, integer_only)
         self.h = _collapse_value(self.h_values, eps, integer_only)
         self.k = _collapse_value(self.k_values, eps, integer_only)
+        self.hk = (self.h, self.k)
 
 
 class LScan(SXRDScan):
@@ -79,6 +81,7 @@ class LScan(SXRDScan):
         # if the above check passes, set a fixed h,k
         self.h = _collapse_value(self.h_values, eps, integer_only=integer_only)
         self.k = _collapse_value(self.k_values, eps, integer_only=integer_only)
+        self.hk = (self.h, self.k)
 
 
 class SXRDExperiment:
@@ -96,7 +99,37 @@ class SXRDExperiment:
         # create lists of stored scans
         self.l_scans = set()
         self.rocking_scans = set()
+        self.raw_fitaid_data = set()
         self.scan_groups = (self.l_scans, self.rocking_scans)
+
+        # keep track of all known scan numbers
+        self.scan_numbers = set()
+
+    @property
+    def fit_per_scan(self):
+        fit_per_scan = {id:set() for id in self.all_scan_numbers}
+        for fit in self.raw_fitaid_data:
+            fit_per_scan[fit.scan_nr].add(fit)
+        return fit_per_scan
+
+    @property
+    def fit_per_hk(self):
+        fit_per_hk = {hk:set() for hk in self.hk_groups}
+        for scan_nr, fits in self.fit_per_scan.items():
+            fit_per_hk[self.scan_number_hk[scan_nr]].update(fits)
+        return _sort_dict_by_hk(fit_per_hk)
+
+    def filtered_fit_per_hk(self, filter_type):
+        filtered = {hk:None for hk in self.hk_groups}
+        for hk, fits in self.fit_per_hk.items():
+            filtered[hk] = set((fit for fit in fits if fit.type==filter_type))
+        return _sort_dict_by_hk(
+            {hk: fits for hk, fits in filtered.items() if len(fits)>0}
+        )
+
+    @property
+    def all_scan_numbers(self):
+        return set(scan.id for scan in self.all_scans)
 
     @property
     def all_scans(self):
@@ -104,9 +137,17 @@ class SXRDExperiment:
 
     def register_scan(self, scan):
         if isinstance(scan, LScan):
+            if scan.id in self.scan_numbers:
+                raise RuntimeError(f"Scan {scan.id} already registered.")
             self.l_scans.add(scan)
+            self.scan_numbers.add(scan.id)
         elif isinstance(scan, RockingCurve):
+            if scan.id in self.scan_numbers:
+                raise RuntimeError(f"Scan {scan.id} already registered.")
             self.rocking_scans.add(scan)
+            self.scan_numbers.add(scan.id)
+        elif isinstance(scan, FitaidOutput):
+            self.raw_fitaid_data.add(scan)
         else:
             raise ValueError("Not a valid scan type.")
 
@@ -115,6 +156,14 @@ class SXRDExperiment:
         for scan in scans:
             assigned_scans[(scan.h, scan.k)].add(scan)
         return _sort_dict_by_hk(assigned_scans)
+
+    @property
+    def scan_number_hk(self):
+        scan_number_hk = {}
+        for hk, numbers in self.assigned_scan_numbers.items():
+            for nr in numbers:
+                scan_number_hk[nr] = hk
+        return scan_number_hk
 
     @property
     def assigned_scans(self):
@@ -135,7 +184,7 @@ class SXRDExperiment:
     def _assign_numbers(self, scans, groups):
         hk_assigned_scan_numbers = {hk:set() for hk in groups}
         for scan in scans:
-            hk_assigned_scan_numbers[(scan.h, scan.k)].add(scan.id)
+            hk_assigned_scan_numbers[scan.hk].add(scan.id)
         for hk in groups:
             hk_assigned_scan_numbers[hk] = (
                 tuple(sorted(hk_assigned_scan_numbers[hk]))
@@ -144,11 +193,11 @@ class SXRDExperiment:
 
     @property
     def l_scan_hk_groups(self):
-        return set(((s.h,s.k) for s in self.l_scans))
+        return set((s.hk for s in self.l_scans))
 
     @property
     def hk_groups(self):
-        return set(((s.h,s.k) for s in self.all_scans))
+        return set((s.hk for s in self.all_scans))
 
 
 def _sort_dict_by_hk(hk_indexed_dict):
