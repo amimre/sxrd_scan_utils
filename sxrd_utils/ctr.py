@@ -20,7 +20,7 @@ class CTR:
 
     def mask_region(self, from_l, to_l):
         # This could be made nicer with the python-intervals package
-        self.maks.append([from_l, to_l])
+        self.masks.append([from_l, to_l])
 
     @property
     def scans(self):
@@ -43,5 +43,5 @@ class CTR:
             raise ValueError("Not a valid Fitaid fit.")
         self.fits.add(fit)
 
-    def filtered_fits(filter_type):
+    def filtered_fits(self, filter_type):
         return set(fit for fit in fits if fit.type == filter_type)

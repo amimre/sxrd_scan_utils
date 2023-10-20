@@ -2,7 +2,6 @@ from collections import defaultdict
 
 import numpy as np
 
-from sxrd_utils.scan import SXRDScan, RockingCurve, LScan
 from sxrd_utils.ctr import CTR
 
 
@@ -76,16 +75,16 @@ class SXRDExperiment:
 
 def _ctr_default_factory(hk):
     if not isinstance(hk, tuple) or len(hk) != 2:
-        raise ValueError("Cannot create CTR object for h,k "
-                         f"values {hk}.")
+        raise ValueError("Cannot create CTR object for h,k " f"values {hk}.")
     return CTR(h=hk[0], k=hk[1])
+
 
 def _sort_dict_by_hk(hk_indexed_dict):
     return {k: v for k, v in sorted(hk_indexed_dict.items(), key=lambda item: item[0])}
 
 
 def grab_scan_nr_list(scan_nr_file):
-    with open(scan_nr_file) as file:
+    with open(scan_nr_file, encoding="utf-8") as file:
         lines = file.readlines()
         scan_numbers = [int(l) for l in lines]
     return scan_numbers
