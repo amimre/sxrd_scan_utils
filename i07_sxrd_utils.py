@@ -4,12 +4,13 @@ from pathlib import Path
 
 from fitaid_structure_factors import FitaidOutput
 
+
 class SXRDScan:
-    """Every scan has a sequential number, acquisition time and (h, k) index.
-    """
+    """Every scan has a sequential number, acquisition time and (h, k) index."""
+
     def __init__(self, nxs_path):
         # ensure file exists
-        self.nxs_path  = nxs_path
+        self.nxs_path = nxs_path
         if not self.nxs_path.is_file():
             raise RuntimeError(f"File {self.nxs_path} does not exist.")
         # get id number
@@ -18,8 +19,9 @@ class SXRDScan:
         # get nexus file
         self.nx_file = nexus.nxload(self.nxs_path)
 
-        self.automated_scan = (True if 'scan_request'
-                               in self.nx_file.entry.diamond_scan.keys() else False)
+        self.automated_scan = (
+            True if "scan_request" in self.nx_file.entry.diamond_scan.keys() else False
+        )
 
         # get number of datapoints
         self.n_datapoints = self.nx_file.entry.diamond_scan.scan_shape
@@ -31,21 +33,27 @@ class SXRDScan:
 
         if self.automated_scan:
             scan_request = str(self.nx_file.entry.diamond_scan.scan_request)
-            scan_request = scan_request.replace('true', 'True').replace('false', 'False')
+            scan_request = scan_request.replace("true", "True").replace(
+                "false", "False"
+            )
             self.scan_request = eval(scan_request)
-            self.continous = self.scan_request['compoundModel']['models'][0]['continuous']
+            self.continous = self.scan_request["compoundModel"]["models"][0][
+                "continuous"
+            ]
         else:
             self.scan_request = None
             self.continous = None  # could be either in this case
 
+
 def _collapse_value(arr, eps, integer_only):
     digits = int(-np.log10(eps))
-    value = round(np.mean(arr),digits) +.0  # +.0 forces -0.0 to 0.0
+    value = round(np.mean(arr), digits) + 0.0  # +.0 forces -0.0 to 0.0
 
     if integer_only:
         if np.any(abs(np.round(arr, digits) - arr) > eps):
-            raise ValueError("integer_only=True was specified, "
-                             f"but values are non-integer.")
+            raise ValueError(
+                "integer_only=True was specified, " f"but values are non-integer."
+            )
         value = int(value)
     return value
 
@@ -59,8 +67,10 @@ class RockingCurve(SXRDScan):
 
         # check that curve has a single L value
         if np.std(self.l_values) > eps:
-            raise ValueError(f"Rocking scan {self.id} has non-constant "
-                             f"L value(s): {self.l_values}")
+            raise ValueError(
+                f"Rocking scan {self.id} has non-constant "
+                f"L value(s): {self.l_values}"
+            )
         self.l = _collapse_value(self.l_values, eps, integer_only)
         self.h = _collapse_value(self.h_values, eps, integer_only)
         self.k = _collapse_value(self.k_values, eps, integer_only)
@@ -107,24 +117,24 @@ class SXRDExperiment:
 
     @property
     def fit_per_scan(self):
-        fit_per_scan = {id:set() for id in self.all_scan_numbers}
+        fit_per_scan = {id: set() for id in self.all_scan_numbers}
         for fit in self.raw_fitaid_data:
             fit_per_scan[fit.scan_nr].add(fit)
         return fit_per_scan
 
     @property
     def fit_per_hk(self):
-        fit_per_hk = {hk:set() for hk in self.hk_groups}
+        fit_per_hk = {hk: set() for hk in self.hk_groups}
         for scan_nr, fits in self.fit_per_scan.items():
             fit_per_hk[self.scan_number_hk[scan_nr]].update(fits)
         return _sort_dict_by_hk(fit_per_hk)
 
     def filtered_fit_per_hk(self, filter_type):
-        filtered = {hk:None for hk in self.hk_groups}
+        filtered = {hk: None for hk in self.hk_groups}
         for hk, fits in self.fit_per_hk.items():
-            filtered[hk] = set((fit for fit in fits if fit.type==filter_type))
+            filtered[hk] = set((fit for fit in fits if fit.type == filter_type))
         return _sort_dict_by_hk(
-            {hk: fits for hk, fits in filtered.items() if len(fits)>0}
+            {hk: fits for hk, fits in filtered.items() if len(fits) > 0}
         )
 
     @property
@@ -152,7 +162,7 @@ class SXRDExperiment:
             raise ValueError("Not a valid scan type.")
 
     def _assign_scans(self, scans, groups):
-        assigned_scans = {hk:set() for hk in groups}
+        assigned_scans = {hk: set() for hk in groups}
         for scan in scans:
             assigned_scans[(scan.h, scan.k)].add(scan)
         return _sort_dict_by_hk(assigned_scans)
@@ -182,13 +192,11 @@ class SXRDExperiment:
         return self._assign_numbers(self.all_scans, self.hk_groups)
 
     def _assign_numbers(self, scans, groups):
-        hk_assigned_scan_numbers = {hk:set() for hk in groups}
+        hk_assigned_scan_numbers = {hk: set() for hk in groups}
         for scan in scans:
             hk_assigned_scan_numbers[scan.hk].add(scan.id)
         for hk in groups:
-            hk_assigned_scan_numbers[hk] = (
-                tuple(sorted(hk_assigned_scan_numbers[hk]))
-            )
+            hk_assigned_scan_numbers[hk] = tuple(sorted(hk_assigned_scan_numbers[hk]))
         return _sort_dict_by_hk(hk_assigned_scan_numbers)
 
     @property
@@ -201,8 +209,7 @@ class SXRDExperiment:
 
 
 def _sort_dict_by_hk(hk_indexed_dict):
-    return {k: v for k, v in sorted(hk_indexed_dict.items(),
-                                    key=lambda item: item[0])}
+    return {k: v for k, v in sorted(hk_indexed_dict.items(), key=lambda item: item[0])}
 
 
 def grab_scan_nr_list(scan_nr_file):
@@ -213,8 +220,8 @@ def grab_scan_nr_list(scan_nr_file):
 
 
 def sorted_output_for_processing(assigned_scan_numbers):
-    sorted_scans = ''
+    sorted_scans = ""
     for _, scan_numbers in assigned_scan_numbers.items():
-        sorted_scans += ' '.join(str(nr) for nr in scan_numbers) + '\n'
+        sorted_scans += " ".join(str(nr) for nr in scan_numbers) + "\n"
     sorted_scans = sorted_scans.strip()  # remove trailing \n
     return sorted_scans
