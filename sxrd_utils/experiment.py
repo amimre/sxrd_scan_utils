@@ -1,6 +1,9 @@
+from collections import defaultdict
+
 import numpy as np
 
-from SXRD.sxrd_utils.scan import RockingCurve, LScan
+from sxrd_utils.scan import SXRDScan, RockingCurve, LScan
+from sxrd_utils.ctr import CTR
 
 
 class SXRDExperiment:
@@ -14,70 +17,37 @@ class SXRDExperiment:
 
     def __init__(self, base_path):
         self.base_path = base_path
-
-        # create lists of stored scans
-        self.l_scans = set()
-        self.rocking_scans = set()
-        self.raw_fitaid_data = set()
-        self.scan_groups = (self.l_scans, self.rocking_scans)
-
-        # keep track of all known scan numbers
-        self.scan_numbers = set()
-
-    @property
-    def fit_per_scan(self):
-        fit_per_scan = {id: set() for id in self.all_scan_numbers}
-        for fit in self.raw_fitaid_data:
-            fit_per_scan[fit.scan_nr].add(fit)
-        return fit_per_scan
-
-    @property
-    def fit_per_hk(self):
-        fit_per_hk = {hk: set() for hk in self.hk_groups}
-        for scan_nr, fits in self.fit_per_scan.items():
-            fit_per_hk[self.scan_number_hk[scan_nr]].update(fits)
-        return _sort_dict_by_hk(fit_per_hk)
-
-    def filtered_fit_per_hk(self, filter_type):
-        filtered = {hk: None for hk in self.hk_groups}
-        for hk, fits in self.fit_per_hk.items():
-            filtered[hk] = set((fit for fit in fits if fit.type == filter_type))
-        return _sort_dict_by_hk(
-            {hk: fits for hk, fits in filtered.items() if len(fits) > 0}
-        )
-
-    @property
-    def all_scan_numbers(self):
-        return set(scan.id for scan in self.all_scans)
+        self.ctrs = defaultdict(_ctr_default_factory)
 
     @property
     def all_scans(self):
-        return set.union(*self.scan_groups)
-
-    def register_scan(self, scan):
-        if isinstance(scan, LScan):
-            if scan.id in self.scan_numbers:
-                raise RuntimeError(f"Scan {scan.id} already registered.")
-            self.l_scans.add(scan)
-            self.scan_numbers.add(scan.id)
-        elif isinstance(scan, RockingCurve):
-            if scan.id in self.scan_numbers:
-                raise RuntimeError(f"Scan {scan.id} already registered.")
-            self.rocking_scans.add(scan)
-            self.scan_numbers.add(scan.id)
-        elif isinstance(scan, FitaidOutput):
-            self.raw_fitaid_data.add(scan)
-        else:
-            raise ValueError("Not a valid scan type.")
-
-    def _assign_scans(self, scans, groups):
-        assigned_scans = {hk: set() for hk in groups}
-        for scan in scans:
-            assigned_scans[(scan.h, scan.k)].add(scan)
-        return _sort_dict_by_hk(assigned_scans)
+        return set.union(ctr.scans for ctr in self.ctrs)
 
     @property
-    def scan_number_hk(self):
+    def l_scans(self):
+        return set.union(ctr.l_scans for ctr in self.ctrs)
+
+    @property
+    def rocking_curves(self):
+        return set.union(ctr.rocking_scans for ctr in self.ctrs)
+
+    @property
+    def all_scan_numbers(self):
+        return set.union(ctr.scan_numbers for ctr in self.ctrs)
+
+    @property
+    def all_fits(self):
+        return set.union(ctr.fits for ctr in self.ctrs)
+
+    @property
+    def filtered_fits(self, filter_type):
+        return set.union(ctr.filtered_fits(filter_type) for ctr in self.ctrs)
+
+    @property
+    def hk_per_scan_number(self):
+        """Dict with (h, k) for every scan number.
+
+        Inverse of scan_number_per_hk"""
         scan_number_hk = {}
         for hk, numbers in self.assigned_scan_numbers.items():
             for nr in numbers:
@@ -85,37 +55,30 @@ class SXRDExperiment:
         return scan_number_hk
 
     @property
-    def assigned_scans(self):
-        return self._assign_scans(self.all_scans, self.hk_groups)
-
-    @property
-    def assigned_lscans(self):
-        return self._assign_scans(self.l_scans, self.l_scan_hk_groups)
-
-    @property
-    def assigned_lscan_numbers(self):
-        return self._assign_numbers(self.l_scans, self.l_scan_hk_groups)
-
-    @property
     def assigned_scan_numbers(self):
-        return self._assign_numbers(self.all_scans, self.hk_groups)
+        """Dict with scan numbers for every (h, k).
 
-    def _assign_numbers(self, scans, groups):
-        hk_assigned_scan_numbers = {hk: set() for hk in groups}
+        Inverse of hk_per_scan_number"""
+        return self._assign_numbers(self.all_scans)
+
+    def _assign_numbers(self, scans):
+        hk_assigned_scan_numbers = {hk: set() for hk in self.hk_groups}
         for scan in scans:
             hk_assigned_scan_numbers[scan.hk].add(scan.id)
-        for hk in groups:
-            hk_assigned_scan_numbers[hk] = tuple(sorted(hk_assigned_scan_numbers[hk]))
+        for hk, unsorted_scans in hk_assigned_scan_numbers.items():
+            hk_assigned_scan_numbers[hk] = tuple(sorted(unsorted_scans))
         return _sort_dict_by_hk(hk_assigned_scan_numbers)
 
     @property
-    def l_scan_hk_groups(self):
-        return set((s.hk for s in self.l_scans))
-
-    @property
     def hk_groups(self):
-        return set((s.hk for s in self.all_scans))
+        return tuple(sorted((ctr.hk for ctr in self.ctrs)))
 
+
+def _ctr_default_factory(hk):
+    if not isinstance(hk, tuple) or len(hk) != 2:
+        raise ValueError("Cannot create CTR object for h,k "
+                         f"values {hk}.")
+    return CTR(h=hk[0], k=hk[1])
 
 def _sort_dict_by_hk(hk_indexed_dict):
     return {k: v for k, v in sorted(hk_indexed_dict.items(), key=lambda item: item[0])}
