@@ -16,7 +16,7 @@ class SXRDExperiment:
 
     def __init__(self, base_path):
         self.base_path = base_path
-        self.ctrs = defaultdict(_ctr_default_factory)
+        self.ctrs = {}
 
     @property
     def all_scans(self):
@@ -72,11 +72,17 @@ class SXRDExperiment:
     def hk_groups(self):
         return tuple(sorted((ctr.hk for ctr in self.ctrs)))
 
+    def register_scan(self, scan):
+        hk = scan.hk
+        if not isinstance(hk, tuple) or len(hk) != 2:
+            raise ValueError("Cannot create CTR object for h,k " f"values {hk}.")
+        if hk not in self.ctrs.keys():
+            self.ctrs[hk] = CTR(h=hk[0], k = hk[1])
+        self.ctrs[hk].register_scan(scan)
 
-def _ctr_default_factory(hk):
-    if not isinstance(hk, tuple) or len(hk) != 2:
-        raise ValueError("Cannot create CTR object for h,k " f"values {hk}.")
-    return CTR(h=hk[0], k=hk[1])
+    @property
+    def max_hk(self):
+        return max(ctr.hk[0] for ctr in self.ctrs), max(ctr.hk[1] for ctr in self.ctrs)
 
 
 def _sort_dict_by_hk(hk_indexed_dict):

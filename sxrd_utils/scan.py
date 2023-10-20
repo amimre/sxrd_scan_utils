@@ -2,7 +2,7 @@ import numpy as np
 from nexusformat import nexus
 from pathlib import Path
 
-from fitaid_structure_factors import FitaidOutput
+from sxrd_utils.fitaid_structure_factors import FitaidOutput
 
 
 class SXRDScan:
