@@ -1,9 +1,7 @@
 import numpy as np
-import binoculars
 from pathlib import Path
 
 from matplotlib import pyplot as plt
-from tqdm import tqdm
 
 
 class FitaidOutput:

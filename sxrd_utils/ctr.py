@@ -11,7 +11,7 @@ class CTR:
         self.h, self.k = h, k
         self.hk = (h, k)
 
-        self.l_min, self.l_max = None, None
+        self.l_limits = (None, None)
         self.masks = []
         self.fits = set()
 
@@ -44,4 +44,4 @@ class CTR:
         self.fits.add(fit)
 
     def filtered_fits(self, filter_type):
-        return set(fit for fit in fits if fit.type == filter_type)
+        return set(fit for fit in self.fits if fit.type == filter_type)
