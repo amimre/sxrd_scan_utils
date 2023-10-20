@@ -3,6 +3,7 @@ from collections import defaultdict
 import numpy as np
 
 from sxrd_utils.ctr import CTR
+from sxrd_utils.scan import SXRDScan
 
 
 class SXRDExperiment:
@@ -16,31 +17,31 @@ class SXRDExperiment:
 
     def __init__(self, base_path):
         self.base_path = base_path
-        self.ctrs = {}
+        self.ctrs = {}  #TODO: probably this should be a tuple/set and there should be an additional property ctrs_per_hk which is a dict...
 
     @property
     def all_scans(self):
-        return set.union(ctr.scans for ctr in self.ctrs)
+        return set.union(*(ctr.scans for ctr in self.ctrs.values()))
 
     @property
     def l_scans(self):
-        return set.union(ctr.l_scans for ctr in self.ctrs)
+        return set.union(*(ctr.l_scans for ctr in self.ctrs.values()))
 
     @property
     def rocking_curves(self):
-        return set.union(ctr.rocking_scans for ctr in self.ctrs)
+        return set.union(*(ctr.rocking_scans for ctr in self.ctrs.values()))
 
     @property
     def all_scan_numbers(self):
-        return set.union(ctr.scan_numbers for ctr in self.ctrs)
+        return set.union(*(ctr.scan_numbers for ctr in self.ctrs.values()))
 
     @property
     def all_fits(self):
-        return set.union(ctr.fits for ctr in self.ctrs)
+        return set.union(*(ctr.fits for ctr in self.ctrs.values()))
 
     @property
     def filtered_fits(self, filter_type):
-        return set.union(ctr.filtered_fits(filter_type) for ctr in self.ctrs)
+        return set.union(*(ctr.filtered_fits(filter_type) for ctr in self.ctrs))
 
     @property
     def hk_per_scan_number(self):
@@ -70,15 +71,25 @@ class SXRDExperiment:
 
     @property
     def hk_groups(self):
-        return tuple(sorted((ctr.hk for ctr in self.ctrs)))
+        return tuple(sorted(self.ctrs.keys()))
 
     def register_scan(self, scan):
+        if not isinstance(scan, SXRDScan):
+            raise ValueError("Must be an SXRD scan to register.")
         hk = scan.hk
         if not isinstance(hk, tuple) or len(hk) != 2:
             raise ValueError("Cannot create CTR object for h,k " f"values {hk}.")
         if hk not in self.ctrs.keys():
             self.ctrs[hk] = CTR(h=hk[0], k = hk[1])
         self.ctrs[hk].register_scan(scan)
+
+    def register_fit(self, fit):
+        """Registers a BINoculars fitaid fit to the experiment.
+
+        The fit does by default not know which (h, k) CTR it belongs to, so we 
+        need to figure it out based on the filename and scan number."""
+        fit_hk = self.hk_per_scan_number[fit.scan_nr]
+        self.ctrs[fit_hk].register_fit(fit)
 
     @property
     def max_hk(self):
