@@ -12,18 +12,20 @@ class CTR:
         self.hk = (h, k)
 
         self.l_limits = (None, None)
-        self.masks = []
+        self.masks = None
         self.fits = set()
 
         # scans
         self.l_scans, self.rocking_scans = set(), set()
 
     def mask_region(self, from_l, to_l):
+        if self.masks is None:
+            self.masks = []
         # This could be made nicer with the python-intervals package
         self.masks.append([from_l, to_l])
 
     def clear_masks(self):
-        self.masks = []
+        self.masks = None
 
     @property
     def scans(self):

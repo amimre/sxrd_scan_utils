@@ -1,4 +1,5 @@
 from collections import defaultdict
+import json
 
 import numpy as np
 
@@ -95,6 +96,30 @@ class SXRDExperiment:
     def max_hk(self):
         return max(ctr.hk[0] for ctr in self.ctrs), max(ctr.hk[1] for ctr in self.ctrs)
 
+    def write_experiment_metadata(self, metadata_file):
+        """Write metadata, such as masked CTR regions, to a JSON file."""
+        masks, start_stop = {}, {}
+        for ctr in self.ctrs.values():
+            masks[ctr.hk] = ctr.masked_regions
+            start_stop[ctr.hk] = ctr.l_limits
+        metadata = (start_stop, masks)
+        with open(metadata_file, "w", encoding="utf-8") as file:
+            json.dump(metadata, file, indent=4)
+
+    def read_experiment_metadata(self, metadata_file):
+        with open(metadata_file, "r", encoding="utf-8") as file:
+            metadata = json.load(file)
+        file_hk_groups = metadata.keys()
+        # verify that we have the correct CTRs
+        for hk, content in file_hk_groups:
+            if hk not in self.ctrs.keys():
+                raise ValueError(
+                    f"CTR with (h, k) = {hk} is not present in the experiment."
+                )
+            # read out limits and masked regions
+            self.ctrs[hk].l_limits = _decode_limits(metadata)
+            self.ctrs[hk].masks = _decode_masks(metadata)
+
 
 def _sort_dict_by_hk(hk_indexed_dict):
     return {k: v for k, v in sorted(hk_indexed_dict.items(), key=lambda item: item[0])}
@@ -113,3 +138,19 @@ def sorted_output_for_processing(assigned_scan_numbers):
         sorted_scans += " ".join(str(nr) for nr in scan_numbers) + "\n"
     sorted_scans = sorted_scans.strip()  # remove trailing \n
     return sorted_scans
+
+
+def _decode_limits(dct):
+    if "start_stop" in dct:
+        return tuple(float(dct["start"])), float(tuple(dct["stop"]))
+    return (None, None)
+
+def _decode_masks(dct):
+    if "masks" in dct:
+        read_masks = dct["masks"]
+        if read_masks is None:
+            return None
+        if not isinstance(read_masks, list):
+            raise ValueError("Masks must be a list of tuples.")
+        return [tuple(float(mask_start), float(mask_stop)) for (mask_start, mask_stop) in read_masks]
+    return None
