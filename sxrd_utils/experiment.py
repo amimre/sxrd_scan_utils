@@ -18,7 +18,9 @@ class SXRDExperiment:
 
     def __init__(self, base_path):
         self.base_path = base_path
-        self.ctrs = {}  #TODO: probably this should be a tuple/set and there should be an additional property ctrs_per_hk which is a dict...
+        self.ctrs = (
+            {}
+        )  # TODO: probably this should be a tuple/set and there should be an additional property ctrs_per_hk which is a dict...
 
     @property
     def all_scans(self):
@@ -81,13 +83,13 @@ class SXRDExperiment:
         if not isinstance(hk, tuple) or len(hk) != 2:
             raise ValueError("Cannot create CTR object for h,k " f"values {hk}.")
         if hk not in self.ctrs.keys():
-            self.ctrs[hk] = CTR(h=hk[0], k = hk[1])
+            self.ctrs[hk] = CTR(h=hk[0], k=hk[1])
         self.ctrs[hk].register_scan(scan)
 
     def register_fit(self, fit):
         """Registers a BINoculars fitaid fit to the experiment.
 
-        The fit does by default not know which (h, k) CTR it belongs to, so we 
+        The fit does by default not know which (h, k) CTR it belongs to, so we
         need to figure it out based on the filename and scan number."""
         fit_hk = self.hk_per_scan_number[fit.scan_nr]
         self.ctrs[fit_hk].register_fit(fit)
@@ -99,26 +101,30 @@ class SXRDExperiment:
     def write_experiment_metadata(self, metadata_file):
         """Write metadata, such as masked CTR regions, to a JSON file."""
         masks, start_stop = {}, {}
+        metadata = {}
         for ctr in self.ctrs.values():
-            masks[ctr.hk] = ctr.masked_regions
-            start_stop[ctr.hk] = ctr.l_limits
-        metadata = (start_stop, masks)
+            metadata[str(ctr.hk)] = {"l_limits": ctr.l_limits, "masks": ctr.masks}
         with open(metadata_file, "w", encoding="utf-8") as file:
             json.dump(metadata, file, indent=4)
 
-    def read_experiment_metadata(self, metadata_file):
+    def read_experiment_metadata(self, metadata_file, integer_only=True):
         with open(metadata_file, "r", encoding="utf-8") as file:
             metadata = json.load(file)
         file_hk_groups = metadata.keys()
         # verify that we have the correct CTRs
-        for hk, content in file_hk_groups:
+        for hk_str in file_hk_groups:
+            if not integer_only:
+                raise NotImplemetedError
+            print(hk_str)
+            h_str, k_str = hk_str[1:-1].split(",")
+            hk = (int(h_str), int(k_str))
             if hk not in self.ctrs.keys():
                 raise ValueError(
                     f"CTR with (h, k) = {hk} is not present in the experiment."
                 )
             # read out limits and masked regions
-            self.ctrs[hk].l_limits = _decode_limits(metadata)
-            self.ctrs[hk].masks = _decode_masks(metadata)
+            self.ctrs[hk].l_limits = _decode_limits(metadata[hk_str])
+            self.ctrs[hk].masks = _decode_masks(metadata[hk_str])
 
 
 def _sort_dict_by_hk(hk_indexed_dict):
@@ -141,9 +147,11 @@ def sorted_output_for_processing(assigned_scan_numbers):
 
 
 def _decode_limits(dct):
-    if "start_stop" in dct:
-        return tuple(float(dct["start"])), float(tuple(dct["stop"]))
+    if "l_limits" in dct:
+        l_limits = dct["l_limits"]
+        return tuple(float(limit) if limit is not None else None for limit in l_limits)
     return (None, None)
+
 
 def _decode_masks(dct):
     if "masks" in dct:
@@ -152,5 +160,8 @@ def _decode_masks(dct):
             return None
         if not isinstance(read_masks, list):
             raise ValueError("Masks must be a list of tuples.")
-        return [tuple(float(mask_start), float(mask_stop)) for (mask_start, mask_stop) in read_masks]
+        return [
+            (float(mask_start), float(mask_stop))
+            for (mask_start, mask_stop) in read_masks
+        ]
     return None
