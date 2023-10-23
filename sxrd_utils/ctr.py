@@ -22,6 +22,9 @@ class CTR:
         # This could be made nicer with the python-intervals package
         self.masks.append([from_l, to_l])
 
+    def clear_masks(self):
+        self.masks = []
+
     @property
     def scans(self):
         return set.union(self.l_scans, self.rocking_scans)
