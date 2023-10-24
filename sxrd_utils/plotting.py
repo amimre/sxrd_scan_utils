@@ -8,7 +8,12 @@ import matplotlib.pyplot as plt
 
 
 def plot_sxrd(
-    experiments, semilog=True, sf_type="sf", plot_kwargs=None, fig_size_factor=5
+    experiments,
+    semilog=True,
+    sf_type="sf",
+    mask_edges=1,
+    plot_kwargs=None,
+    fig_size_factor=5,
 ):
     # if experiments is a single experiment, make it into a tuple
     if isinstance(experiments, SXRDExperiment):
@@ -37,13 +42,14 @@ def plot_sxrd(
                 sf_type=sf_type,
                 semilog=semilog,
                 plot_kwargs=plot_kwargs,
+                mask_edges=mask_edges,
             )
 
     return figure
 
 
 def plot_rod_onto_axis(
-    hk, axis, experiments, sf_type="sf", semilog=True, plot_kwargs=None
+    hk, axis, experiments, sf_type="sf", mask_edges=1, semilog=True, plot_kwargs=None
 ):
     if plot_kwargs is None:
         plot_kwargs = [
@@ -54,7 +60,10 @@ def plot_rod_onto_axis(
             # skip if we don't have a fit for this hk
             continue
         l_values, structure_factors = exp.ctrs[hk].masked_fits(
-            filter_type=sf_type, l_limits=exp.l_limits
+            filter_type=sf_type,
+            l_limits=exp.l_limits,
+            mask_edges=mask_edges,
+            sf_threshold=exp.fit_threshold,
         )
         axis.plot(l_values, structure_factors, **kwargs)
     if any("label" in kwargs.keys() for kwargs in plot_kwargs) and axis.lines:

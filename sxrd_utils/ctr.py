@@ -54,7 +54,12 @@ class CTR:
         return set(fit for fit in self.fits if fit.type == filter_type)
 
     def masked_fits(
-        self, l_limits=(None, None), mask_below=1e-3, filter_type=None
+        self,
+        l_limits=(None, None),
+        sf_threshold=1e-3,
+        filter_type=None,
+        mask_edges=1,
+        fill_nan=True,
     ):  # TODO: come up with better name
         if filter_type:
             fits = self.filtered_fits(filter_type)
@@ -71,16 +76,24 @@ class CTR:
         if l_limits[1] is not None:
             _masks.append((l_limits[1], np.inf))
 
+        # mask values at edge of fit
+        if mask_edges and fits:
+            for fit in fits:
+                _masks.append((fit.l_values[0], fit.l_values[mask_edges]))
+                _masks.append((fit.l_values[-mask_edges], fit.l_values[-1]))
+        print(_masks)
+
         # apply masked l_values
         if _masks:
             masked_l_values = [
-                np.logical_and(all_l > mask[0], all_l < mask[1]) for mask in _masks
+                np.logical_and(all_l >= mask[0], all_l <= mask[1]) for mask in _masks
             ]
             masked_l_values = np.logical_or.reduce(masked_l_values)
         else:
             masked_l_values = np.full_like(all_l, False)
+
         # mask any values below mask_below
-        masked_below_threshold = all_sf <= mask_below
+        masked_below_threshold = all_sf <= sf_threshold
         # mask any NaNs
         masked_nan = np.isnan(all_sf)
 
@@ -89,8 +102,13 @@ class CTR:
             (masked_l_values, masked_below_threshold, masked_nan)
         )
 
-        # drop masked values
-        masked_l, masked_sf = all_l[~combined_mask], all_sf[~combined_mask]
+        if fill_nan:  # replace masked values with NaNs
+            masked_l = all_l
+            masked_sf = np.ma.filled(
+                np.ma.masked_array(all_sf, mask=combined_mask), fill_value=np.nan
+            )
+        else:  # drop masked values
+            masked_l, masked_sf = all_l[~combined_mask], all_sf[~combined_mask]
 
         # finally sort by L values
         sorting_indices = np.argsort(masked_l)

@@ -19,6 +19,7 @@ class SXRDExperiment:
     def __init__(self, base_path):
         self.base_path = base_path
         self.l_limits = (None, None)
+        self.fit_threshold = 1
         self.ctrs = (
             {}
         )  # TODO: probably this should be a tuple/set and there should be an additional property ctrs_per_hk which is a dict...
