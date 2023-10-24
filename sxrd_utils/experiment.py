@@ -96,7 +96,7 @@ class SXRDExperiment:
 
     @property
     def max_hk(self):
-        return max(ctr.hk[0] for ctr in self.ctrs), max(ctr.hk[1] for ctr in self.ctrs)
+        return max(ctr.hk[0] for ctr in self.ctrs.values()), max(ctr.hk[1] for ctr in self.ctrs.values())
 
     def write_experiment_metadata(self, metadata_file):
         """Write metadata, such as masked CTR regions, to a JSON file."""
