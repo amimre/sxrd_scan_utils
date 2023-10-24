@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 
 from sxrd_utils.scan import RockingCurve, LScan
@@ -52,7 +53,9 @@ class CTR:
     def filtered_fits(self, filter_type):
         return set(fit for fit in self.fits if fit.type == filter_type)
 
-    def masked_fits(self, mask_below=1e-3, filter_type=None):  # TODO: come up with better name
+    def masked_fits(
+        self, l_limits=(None, None), mask_below=1e-3, filter_type=None
+    ):  # TODO: come up with better name
         if filter_type:
             fits = self.filtered_fits(filter_type)
         else:
@@ -62,20 +65,29 @@ class CTR:
         all_sf = np.concatenate([fit.values for fit in fits])
         masked_nan = np.ma.masked_array(all_sf)  # masked array
 
+        _masks = deepcopy(self.masks) if self.masks else []
+        if l_limits[0] is not None:
+            _masks.append((-np.inf, l_limits[0]))
+        if l_limits[1] is not None:
+            _masks.append((l_limits[1], np.inf))
+
         # apply masked l_values
-        if self.masks:
-            masked_l_values = [np.logical_and(all_l > mask[0], all_l < mask[1]) for mask in self.masks]
+        if _masks:
+            masked_l_values = [
+                np.logical_and(all_l > mask[0], all_l < mask[1]) for mask in _masks
+            ]
             masked_l_values = np.logical_or.reduce(masked_l_values)
         else:
             masked_l_values = np.full_like(all_l, False)
-        # mask any values outside bounds
         # mask any values below mask_below
         masked_below_threshold = all_sf <= mask_below
         # mask any NaNs
         masked_nan = np.isnan(all_sf)
 
         # combine masks
-        combined_mask = np.logical_or.reduce((masked_l_values, masked_below_threshold, masked_nan))
+        combined_mask = np.logical_or.reduce(
+            (masked_l_values, masked_below_threshold, masked_nan)
+        )
 
         # drop masked values
         masked_l, masked_sf = all_l[~combined_mask], all_sf[~combined_mask]

@@ -18,6 +18,7 @@ class SXRDExperiment:
 
     def __init__(self, base_path):
         self.base_path = base_path
+        self.l_limits = (None, None)
         self.ctrs = (
             {}
         )  # TODO: probably this should be a tuple/set and there should be an additional property ctrs_per_hk which is a dict...
@@ -96,7 +97,9 @@ class SXRDExperiment:
 
     @property
     def max_hk(self):
-        return max(ctr.hk[0] for ctr in self.ctrs.values()), max(ctr.hk[1] for ctr in self.ctrs.values())
+        return max(ctr.hk[0] for ctr in self.ctrs.values()), max(
+            ctr.hk[1] for ctr in self.ctrs.values()
+        )
 
     def write_experiment_metadata(self, metadata_file):
         """Write metadata, such as masked CTR regions, to a JSON file."""
