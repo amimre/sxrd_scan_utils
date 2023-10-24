@@ -100,22 +100,21 @@ class SXRDExperiment:
 
     def write_experiment_metadata(self, metadata_file):
         """Write metadata, such as masked CTR regions, to a JSON file."""
-        masks, start_stop = {}, {}
-        metadata = {}
+        metadata = {"l_limits": self.l_limits}
         for ctr in self.ctrs.values():
-            metadata[str(ctr.hk)] = {"l_limits": ctr.l_limits, "masks": ctr.masks}
+            metadata[str(ctr.hk)] = {"masks": ctr.masks}
         with open(metadata_file, "w", encoding="utf-8") as file:
             json.dump(metadata, file, indent=4)
 
     def read_experiment_metadata(self, metadata_file, integer_only=True):
         with open(metadata_file, "r", encoding="utf-8") as file:
             metadata = json.load(file)
-        file_hk_groups = metadata.keys()
+        self.l_limits = _decode_limits(metadata)
+        file_hk_groups = (key for key in metadata.keys() if key.startswith("("))
         # verify that we have the correct CTRs
         for hk_str in file_hk_groups:
             if not integer_only:
-                raise NotImplemetedError
-            print(hk_str)
+                raise NotImplementedError
             h_str, k_str = hk_str[1:-1].split(",")
             hk = (int(h_str), int(k_str))
             if hk not in self.ctrs.keys():

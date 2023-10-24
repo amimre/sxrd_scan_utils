@@ -11,7 +11,6 @@ class CTR:
         self.h, self.k = h, k
         self.hk = (h, k)
 
-        self.l_limits = (None, None)
         self.masks = None
         self.fits = set()
 
