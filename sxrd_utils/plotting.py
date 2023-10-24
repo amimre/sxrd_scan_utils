@@ -6,7 +6,7 @@ from sxrd_utils.scan import SXRDScan
 
 import matplotlib.pyplot as plt
 
-def plot_sxrd(experiments, semilog=True, plot_kwargs=None, fig_size_factor=5):
+def plot_sxrd(experiments, semilog=True, sf_type="sf", plot_kwargs=None, fig_size_factor=5):
     # if experiments is a single experiment, make it into a tuple
     if isinstance(experiments, SXRDExperiment):
         experiments = (experiments, )
@@ -28,21 +28,23 @@ def plot_sxrd(experiments, semilog=True, plot_kwargs=None, fig_size_factor=5):
 
             # plot the rod
             plot_rod_onto_axis(hk, axis, experiments,
+                               sf_type=sf_type,
                                semilog=semilog,
                                plot_kwargs=plot_kwargs)
 
     return figure
 
-def plot_rod_onto_axis(hk, axis, experiments, semilog=True, plot_kwargs=None):
+def plot_rod_onto_axis(hk, axis, experiments, 
+                       sf_type="sf",
+                       semilog=True, plot_kwargs=None):
     if plot_kwargs is None:
         plot_kwargs =[{},]*len(experiments)
     for exp, kwargs in zip(experiments, plot_kwargs):
-        if hk not in exp.ctrs:
+        if hk not in exp.ctrs or not exp.ctrs[hk].fits:
             # skip if we don't have a fit for this hk
             continue
-        for fit in exp.ctrs[hk].fits:
-            print(kwargs)
-            axis.plot(fit.l_values, fit.values, **kwargs)
+        l_values, structure_factors = exp.ctrs[hk].masked_fits(filter_type=sf_type)
+        axis.plot(l_values, structure_factors, **kwargs)
     if any("label" in kwargs.keys() for kwargs in plot_kwargs):
         axis.legend()
     if semilog:
