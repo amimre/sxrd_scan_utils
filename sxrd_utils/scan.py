@@ -60,7 +60,7 @@ def _collapse_value(arr, eps, integer_only):
 
 class RockingCurve(SXRDScan):
     # *should* have a single L value, but moving H,K (==omega)
-    def __init__(self, nxs_path, integer_only=True, eps=1e-3):
+    def __init__(self, nxs_path, integer_only=True, eps=1e-1):
         super().__init__(nxs_path)
         if eps <= 0:
             raise ValueError("eps must be >= 0")
@@ -79,7 +79,7 @@ class RockingCurve(SXRDScan):
 
 class LScan(SXRDScan):
     # *should* have a single H,K value
-    def __init__(self, nxs_path, integer_only=True, eps=1e-3):
+    def __init__(self, nxs_path, integer_only=True, eps=1e-1):
         super().__init__(nxs_path)
         if eps <= 0:
             raise ValueError("eps must be >= 0")
