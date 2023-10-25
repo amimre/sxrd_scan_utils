@@ -1,4 +1,5 @@
 from copy import deepcopy
+
 import numpy as np
 
 from sxrd_utils.scan import RockingCurve, LScan
@@ -58,7 +59,7 @@ class CTR:
         l_limits=(None, None),
         sf_threshold=1e-3,
         filter_type=None,
-        mask_edges=1,
+        mask_outside_scans=True,  # mask any L region outside what is captured in self.scans
         fill_nan=True,
     ):  # TODO: come up with better name
         if filter_type:
@@ -70,18 +71,22 @@ class CTR:
         all_sf = np.concatenate([fit.values for fit in fits])
         masked_nan = np.ma.masked_array(all_sf)  # masked array
 
+        # mask l limits
         _masks = deepcopy(self.masks) if self.masks else []
         if l_limits[0] is not None:
             _masks.append((-np.inf, l_limits[0]))
         if l_limits[1] is not None:
             _masks.append((l_limits[1], np.inf))
 
-        # mask values at edge of fit
-        if mask_edges and fits:
-            for fit in fits:
-                _masks.append((fit.l_values[0], fit.l_values[mask_edges]))
-                _masks.append((fit.l_values[-mask_edges], fit.l_values[-1]))
-        print(_masks)
+        # mask areas outside scan
+        if mask_outside_scans:
+            covered_regions = [(np.min(scan.l_values), np.max(scan.l_values)) for scan in self.scans]
+            covered_l_values = [
+                np.logical_and(all_l >= region[0], all_l <= region[1]) for region in covered_regions
+            ]
+            covered_l_values = ~np.logical_or.reduce(covered_l_values)
+        else:
+            covered_l_values = np.full_like(all_l, False)
 
         # apply masked l_values
         if _masks:
@@ -99,7 +104,7 @@ class CTR:
 
         # combine masks
         combined_mask = np.logical_or.reduce(
-            (masked_l_values, masked_below_threshold, masked_nan)
+            (masked_l_values, masked_below_threshold, masked_nan, covered_l_values)
         )
 
         if fill_nan:  # replace masked values with NaNs
