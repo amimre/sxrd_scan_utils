@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools"]
+
+[project]
+name = "sxrd_utils"
+version = "0.0.1"
+
+requires-python = ">=3.8"
+dependencies = [
+    "matplotlib",
+    "numpy",
+
+]
