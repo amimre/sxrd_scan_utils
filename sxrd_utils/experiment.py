@@ -20,6 +20,7 @@ class SXRDExperiment:
         self.base_path = base_path
         self.l_limits = (None, None)
         self.fit_threshold = 1
+        self.mask_outside_scan = True
         self.ctrs = (
             {}
         )  # TODO: probably this should be a tuple/set and there should be an additional property ctrs_per_hk which is a dict...
@@ -104,7 +105,8 @@ class SXRDExperiment:
 
     def write_experiment_metadata(self, metadata_file):
         """Write metadata, such as masked CTR regions, to a JSON file."""
-        metadata = {"l_limits": self.l_limits}
+        metadata = {"l_limits": self.l_limits,
+                    "mask_outside_scans": self.mask_outside_scan}
         for ctr in self.ctrs.values():
             metadata[str(ctr.hk)] = {"masks": ctr.masks}
         with open(metadata_file, "w", encoding="utf-8") as file:
@@ -113,12 +115,15 @@ class SXRDExperiment:
     def read_experiment_metadata(self, metadata_file, integer_only=True):
         with open(metadata_file, "r", encoding="utf-8") as file:
             metadata = json.load(file)
+        # read global experiment settings that apply to all CTRs
         self.l_limits = _decode_limits(metadata)
+        self.mask_outside_scan = _decode_mask_outside(metadata)
         file_hk_groups = (key for key in metadata.keys() if key.startswith("("))
         # verify that we have the correct CTRs
         for hk_str in file_hk_groups:
             if not integer_only:
                 raise NotImplementedError
+            # read out CTR specific settings
             h_str, k_str = hk_str[1:-1].split(",")
             hk = (int(h_str), int(k_str))
             if hk not in self.ctrs.keys():
@@ -126,7 +131,6 @@ class SXRDExperiment:
                     f"CTR with (h, k) = {hk} is not present in the experiment."
                 )
             # read out limits and masked regions
-            self.ctrs[hk].l_limits = _decode_limits(metadata[hk_str])
             self.ctrs[hk].masks = _decode_masks(metadata[hk_str])
 
 
@@ -168,3 +172,8 @@ def _decode_masks(dct):
             for (mask_start, mask_stop) in read_masks
         ]
     return None
+
+def _decode_mask_outside(dct):
+    if "mask_outside_scans" in dct:
+        return bool(dct["mask_outside_scans"])
+    return True
