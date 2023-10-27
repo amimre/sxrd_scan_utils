@@ -20,11 +20,11 @@ class ReciprocalSpaceMap:
         return(self.space.axes[2].min + self.space.axes[2].max) / 2
 
     def mask_l_axis_cylinder(self, hk_center, radius):
-        """Return a cylindical mask for the reciprocal space map along the l axis.
+        """Return a cylindrical mask for the reciprocal space map along the l axis.
 
         Return a boolean mask for the binned reciprocal space map, where all voxels
         outside the cylinder with radius `radius` around the l axis are masked.
-        The radius is given in reciprocal space units and takes h and k into equally
+        The radius is given in reciprocal space units and takes h and k equally
         into account, i.e. a voxel is inside the cylinder if
         |(h, k, l) - (h_0, k_0, l)| <= radius."""
 
