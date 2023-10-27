@@ -37,12 +37,12 @@ class SXRDScan:
                 "false", "False"
             )
             self.scan_request = eval(scan_request)
-            self.continous = self.scan_request["compoundModel"]["models"][0][
+            self.continuous = self.scan_request["compoundModel"]["models"][0][
                 "continuous"
             ]
         else:
             self.scan_request = None
-            self.continous = None  # could be either in this case
+            self.continuous = None  # could be either in this case
 
 
 def _collapse_value(arr, eps, integer_only):
