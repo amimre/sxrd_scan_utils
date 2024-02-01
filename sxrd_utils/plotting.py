@@ -11,9 +11,11 @@ def plot_sxrd(
     experiments,
     semilog=True,
     sf_type="sf",
-    mask_edges=1,
+    mask_outside=True,
     plot_kwargs=None,
     fig_size_factor=5,
+    l_range=None,
+    intensity_range=None,
 ):
     # if experiments is a single experiment, make it into a tuple
     if isinstance(experiments, SXRDExperiment):
@@ -30,6 +32,10 @@ def plot_sxrd(
         for k in range(0, k_max + 1):
             hk = (h, k)
             axis = axes[h, k]
+            if l_range is not None:
+                axis.set_xlim(l_range)
+            if intensity_range is not None:
+                axis.set_ylim(intensity_range)
 
             # set title
             axis.set_title(str(hk))
@@ -41,15 +47,16 @@ def plot_sxrd(
                 experiments,
                 sf_type=sf_type,
                 semilog=semilog,
+                mask_outside=mask_outside,
                 plot_kwargs=plot_kwargs,
-                mask_edges=mask_edges,
             )
 
     return figure
 
 
 def plot_rod_onto_axis(
-    hk, axis, experiments, sf_type="sf", mask_edges=1, semilog=True, plot_kwargs=None
+    hk, axis, experiments, sf_type="sf", mask_outside=True,
+    semilog=True, plot_kwargs=None,
 ):
     if plot_kwargs is None:
         plot_kwargs = [
@@ -62,7 +69,7 @@ def plot_rod_onto_axis(
         l_values, structure_factors = exp.ctrs[hk].masked_fits(
             filter_type=sf_type,
             l_limits=exp.l_limits,
-            mask_edges=mask_edges,
+            mask_outside_scans=mask_outside,
             sf_threshold=exp.fit_threshold,
         )
         axis.plot(l_values, structure_factors, **kwargs)

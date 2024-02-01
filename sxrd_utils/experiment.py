@@ -97,6 +97,16 @@ class SXRDExperiment:
         fit_hk = self.hk_per_scan_number[fit.scan_nr]
         self.ctrs[fit_hk].register_fit(fit)
 
+    def register_reciprocal_space_map(self, file,
+                                      associated_scan_nr, hkl_resolution):
+        """Register a reciprocal space map with the experiment.
+        
+        Similarly to the fits, the RSM does not know which (h, k) CTR it
+        belongs to, so we need to figure it out based on the filename and scan
+        number."""
+        rsm_hk = self.hk_per_scan_number[associated_scan_nr]
+        self.ctrs[rsm_hk].register_reciprocal_space_map(file, hkl_resolution)
+
     @property
     def max_hk(self):
         return max(ctr.hk[0] for ctr in self.ctrs.values()), max(
@@ -106,9 +116,13 @@ class SXRDExperiment:
     def write_experiment_metadata(self, metadata_file):
         """Write metadata, such as masked CTR regions, to a JSON file."""
         metadata = {"l_limits": self.l_limits,
-                    "mask_outside_scans": self.mask_outside_scan}
+                    "mask_outside_scans": self.mask_outside_scan,}
         for ctr in self.ctrs.values():
-            metadata[str(ctr.hk)] = {"masks": ctr.masks}
+            metadata[str(ctr.hk)] = {
+                "masks": ctr.masks,
+                "hk_center": ctr.rsm_center_and_background[0],
+                "hk_background": ctr.rsm_center_and_background[1],
+            }
         with open(metadata_file, "w", encoding="utf-8") as file:
             json.dump(metadata, file, indent=4)
 
@@ -130,8 +144,13 @@ class SXRDExperiment:
                 raise ValueError(
                     f"CTR with (h, k) = {hk} is not present in the experiment."
                 )
-            # read out limits and masked regions
+            # read out limits, masked regions, and RSM center and background
             self.ctrs[hk].masks = _decode_masks(metadata[hk_str])
+            rsm_hk_center = _decode_hk(metadata[hk_str], 'hk_center')
+            rsm_hk_background = _decode_hk(metadata[hk_str], 'hk_background')
+            if self.ctrs[hk].rsm is not None:
+                self.ctrs[hk].set_rsm_center_and_background(
+                    rsm_hk_center, rsm_hk_background)
 
 
 def _sort_dict_by_hk(hk_indexed_dict):
@@ -173,7 +192,16 @@ def _decode_masks(dct):
         ]
     return None
 
+
 def _decode_mask_outside(dct):
     if "mask_outside_scans" in dct:
         return bool(dct["mask_outside_scans"])
     return True
+
+
+def _decode_hk(dct, hk_name):
+    if hk_name in dct:
+        if dct[hk_name] is None:
+            return (None, None)
+        return tuple(float(hk) for hk in dct[hk_name])
+    return (None, None)

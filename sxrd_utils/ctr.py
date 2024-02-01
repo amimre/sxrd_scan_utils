@@ -4,6 +4,7 @@ import numpy as np
 
 from sxrd_utils.scan import RockingCurve, LScan
 from sxrd_utils.fitaid_structure_factors import FitaidOutput
+from sxrd_utils.structure_factor_extraction import ReciprocalSpaceMap
 
 
 class CTR:
@@ -18,6 +19,8 @@ class CTR:
 
         # scans
         self.l_scans, self.rocking_scans = set(), set()
+
+        self._rsm = None
 
     def mask_region(self, from_l, to_l):
         if self.masks is None:
@@ -37,6 +40,34 @@ class CTR:
     @property
     def scan_numbers(self):
         return set(scan.id for scan in self.scans)
+
+    def register_reciprocal_space_map(self, file, hkl_resolution):
+        """Register a reciprocal space map with the experiment."""
+        self._rsm = ReciprocalSpaceMap(file, hkl_resolution)
+
+    @property
+    def rsm(self):
+        return self._rsm
+
+    @property
+    def rsm_valid_center_and_background_set(self):
+        if self.rsm is None:
+            return False
+        return not (None in self.rsm.central_hk
+                    or None in self.rsm.background_hk)
+
+    @property
+    def rsm_center_and_background(self):
+        if not self.rsm_valid_center_and_background_set:
+            return None, None
+        return self.rsm.central_hk, self.rsm.background_hk
+
+    def set_rsm_center_and_background(self, hk_center, hk_background):
+        if self.rsm is None:
+            raise ValueError("No reciprocal space map registered.")
+        self.rsm.central_hk = hk_center
+        self.rsm.background_hk = hk_background
+
 
     def register_scan(self, scan):
         if isinstance(scan, LScan):
